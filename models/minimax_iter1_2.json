@@ -91,9 +91,7 @@
     },
     "iteration": 1,
     "num_matches_per_baseline": 200,
-    "saved_at": "2025-11-08T20:38:47.956977",
-    "model_name": "minimax_20251108_203847",
-    "win_rate": 0.80625,
-    "avg_reward": 0.6394943068775819
+    "saved_at": "2025-11-08T20:38:47.955654",
+    "model_name": "minimax_iter1_2"
   }
 }

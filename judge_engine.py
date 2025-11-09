@@ -218,6 +218,7 @@ def main():
     # Get agent URLs from environment variables
     PLAYER1_URL = os.getenv("PLAYER1_URL", "http://localhost:5008")
     PLAYER2_URL = os.getenv("PLAYER2_URL", "http://localhost:5009")
+    # PLAYER2_URL = "https://pix-managing-chris-nations.trycloudflare.com/"
 
     # Creating judge
     print(f"Creating judge for {PLAYER1_URL} and {PLAYER2_URL}...")
