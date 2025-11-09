@@ -5,6 +5,8 @@ from threading import Lock
 from collections import deque
 
 from case_closed_game import Game, Direction, GameResult
+from minimax_agent import MinimaxAgent
+from model_manager import ModelManager
 
 # Flask API server setup
 app = Flask(__name__)
@@ -16,6 +18,46 @@ game_lock = Lock()
  
 PARTICIPANT = "ParticipantX"
 AGENT_NAME = "AgentX"
+
+# Initialize Minimax agent
+_minimax_agent = None
+_model_manager = ModelManager(models_dir="models")
+
+
+def _get_minimax_agent(player_number: int):
+    """Get or create Minimax agent for the player."""
+    global _minimax_agent
+    
+    if _minimax_agent is None:
+        # Try to load best model, or use defaults
+        model_config = _model_manager.load_best_model('minimax')
+        if model_config is None:
+            # Use default configuration
+            _minimax_agent = MinimaxAgent(
+                agent_id=player_number,
+                depth=4,
+                aggressive_weight=0.33,
+                exploration_weight=0.33,
+                safety_weight=0.34,
+                use_transposition_table=True
+            )
+        else:
+            # Load from model configuration
+            _minimax_agent = MinimaxAgent(
+                agent_id=player_number,
+                depth=model_config.get('depth', 4),
+                aggressive_weight=model_config.get('aggressive_weight', 0.33),
+                exploration_weight=model_config.get('exploration_weight', 0.33),
+                safety_weight=model_config.get('safety_weight', 0.34),
+                use_transposition_table=model_config.get('use_transposition_table', True),
+                tt_max_size=model_config.get('tt_max_size', 10000)
+            )
+    
+    # Update agent_id if player number changed
+    if _minimax_agent.agent_id != player_number:
+        _minimax_agent.agent_id = player_number
+    
+    return _minimax_agent
 
 
 @app.route("/", methods=["GET"])
@@ -95,15 +137,36 @@ def send_move():
         my_agent = GLOBAL_GAME.agent1 if player_number == 1 else GLOBAL_GAME.agent2
         boosts_remaining = my_agent.boosts_remaining
    
-    # -----------------your code here-------------------
-    # Simple example: always go RIGHT (replace this with your logic)
-    # To use a boost: move = "RIGHT:BOOST"
-    move = "RIGHT"
-    
-    # Example: Use boost if available and it's late in the game
-    # turn_count = state.get("turn_count", 0)
-    # if boosts_remaining > 0 and turn_count > 50:
-    #     move = "RIGHT:BOOST"
+    # -----------------Minimax agent decision-------------------
+    try:
+        # Get Minimax agent
+        minimax_agent = _get_minimax_agent(player_number)
+        
+        # Update agent direction from game state
+        with game_lock:
+            minimax_agent.agent_id = player_number
+            direction, use_boost = minimax_agent.get_best_move(GLOBAL_GAME)
+        
+        # Convert Direction to string
+        direction_map = {
+            Direction.UP: "UP",
+            Direction.DOWN: "DOWN",
+            Direction.LEFT: "LEFT",
+            Direction.RIGHT: "RIGHT"
+        }
+        move = direction_map.get(direction, "RIGHT")
+        
+        # Add boost if needed
+        if use_boost and boosts_remaining > 0:
+            move = f"{move}:BOOST"
+    except Exception as e:
+        # Fallback to simple strategy if Minimax fails
+        print(f"Minimax error: {e}")
+        move = "RIGHT"
+        # Use boost if available and it's late in the game
+        turn_count = state.get("turn_count", 0)
+        if boosts_remaining > 0 and turn_count > 50:
+            move = "RIGHT:BOOST"
     # -----------------end code here--------------------
 
     return jsonify({"move": move}), 200

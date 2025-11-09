@@ -1,0 +1,14 @@
+{
+  "type": "minimax",
+  "aggressive_weight": 0.625,
+  "exploration_weight": 0.25000000000000006,
+  "safety_weight": 0.12500000000000003,
+  "depth": 2,
+  "metadata": {
+    "win_rate": 0.0,
+    "avg_reward": 0.07001724137931033,
+    "num_matches": 10,
+    "saved_at": "2025-11-08T18:29:44.008422",
+    "model_name": "minimax_config_16"
+  }
+}
