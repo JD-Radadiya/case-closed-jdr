@@ -1,0 +1,16 @@
+{
+  "type": "minimax",
+  "aggressive_weight": 0.1473248777236671,
+  "exploration_weight": 0.5317498151909871,
+  "safety_weight": 0.32092530708534583,
+  "depth": 6,
+  "use_transposition_table": false,
+  "tt_max_size": 5000,
+  "metadata": {
+    "generation": 2,
+    "fitness": 0.7855386536660014,
+    "training_method": "self_play",
+    "saved_at": "2025-11-09T01:43:23.015026",
+    "model_name": "minimax_20251109_014323"
+  }
+}

@@ -30,7 +30,7 @@ def _get_minimax_agent(player_number: int):
     
     if _minimax_agent is None:
         # Try to load best model, or use defaults
-        model_config = _model_manager.load_best_model('minimax')
+        model_config = _model_manager.load_best_model('minimax_v3')
         if model_config is None:
             # Use default configuration
             _minimax_agent = MinimaxAgent(

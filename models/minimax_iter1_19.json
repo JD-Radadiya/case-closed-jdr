@@ -1,0 +1,97 @@
+{
+  "type": "minimax",
+  "aggressive_weight": 0.4166666666666667,
+  "exploration_weight": 0.4166666666666667,
+  "safety_weight": 0.16666666666666669,
+  "depth": 6,
+  "use_transposition_table": false,
+  "tt_max_size": 10000,
+  "metadata": {
+    "overall_win_rate": 0.6525,
+    "overall_avg_reward": 0.3841258516068115,
+    "overall_avg_invalid_moves": 0.0,
+    "reward_breakdown": {
+      "win": 0.3375,
+      "territory": 0.43324601606811597,
+      "survival": 0.7080124999999998
+    },
+    "baselines": {
+      "random": {
+        "win_rate": 0.89,
+        "avg_reward": 0.7610976148148684,
+        "draw_rate": 0.0,
+        "avg_turns": 34.155,
+        "avg_invalid_moves": 0.0,
+        "avg_boosts_used": 3.0,
+        "reward_breakdown": {
+          "win": 0.78,
+          "territory": 0.5595636481486845,
+          "survival": 0.8114124999999999
+        },
+        "avg_stats": {
+          "nodes_evaluated": 2.645,
+          "max_depth_reached": 0.0
+        },
+        "matches_played": 200
+      },
+      "heuristic": {
+        "win_rate": 0.5,
+        "avg_reward": 0.09130625082551838,
+        "draw_rate": 0.0,
+        "avg_turns": 72.0,
+        "avg_invalid_moves": 0.0,
+        "avg_boosts_used": 3.0,
+        "reward_breakdown": {
+          "win": 0.0,
+          "territory": 0.3343125082551844,
+          "survival": 0.5787500000000001
+        },
+        "avg_stats": {
+          "nodes_evaluated": 1.0,
+          "max_depth_reached": 0.0
+        },
+        "matches_played": 200
+      },
+      "default_minimax": {
+        "win_rate": 0.5,
+        "avg_reward": 0.09975542051531334,
+        "draw_rate": 0.0,
+        "avg_turns": 123.0,
+        "avg_invalid_moves": 0.0,
+        "avg_boosts_used": 3.0,
+        "reward_breakdown": {
+          "win": 0.0,
+          "territory": 0.33255420515313505,
+          "survival": 0.6649999999999996
+        },
+        "avg_stats": {
+          "nodes_evaluated": 0.5,
+          "max_depth_reached": 0.0
+        },
+        "matches_played": 200
+      },
+      "default_mcts": {
+        "win_rate": 0.72,
+        "avg_reward": 0.584344120271546,
+        "draw_rate": 0.13,
+        "avg_turns": 49.33,
+        "avg_invalid_moves": 0.0,
+        "avg_boosts_used": 3.0,
+        "reward_breakdown": {
+          "win": 0.57,
+          "territory": 0.5065537027154602,
+          "survival": 0.7768875
+        },
+        "avg_stats": {
+          "nodes_evaluated": 2.415,
+          "max_depth_reached": 0.0
+        },
+        "matches_played": 200
+      }
+    },
+    "iteration": 1,
+    "num_matches_per_baseline": 200,
+    "saved_at": "2025-11-09T05:30:49.748041",
+    "model_name": "minimax_iter1_19"
+  }
+}
