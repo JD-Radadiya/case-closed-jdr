@@ -72,7 +72,16 @@ class GameResult(Enum):
 
 class Agent:
     '''This class represents an agent in the game. It manages the agent's trail using a deque.'''
-    def __init__(self, agent_id: str, start_pos: tuple[int, int], start_dir: Direction, board: GameBoard):
+
+    def __init__(
+        self,
+        agent_id: str,
+        start_pos: tuple[int, int],
+        start_dir: Direction,
+        board: GameBoard,
+        *,
+        verbose: bool = False,
+    ):
         self.agent_id = agent_id
         second = (start_pos[0] + start_dir.value[0], start_pos[1] + start_dir.value[1])
         self.trail = deque([start_pos, second])  # Trail of positions
@@ -81,6 +90,9 @@ class Agent:
         self.alive = True
         self.length = 2  # Initial length of the trail
         self.boosts_remaining = 3  # Each agent gets 3 speed boosts
+        self.verbose = verbose
+        self.invalid_move_count = 0
+        self.boosts_used = 0
 
         self.board.set_cell_state(start_pos, AGENT)
         self.board.set_cell_state(second, AGENT)
@@ -105,32 +117,34 @@ class Agent:
             return False
 
         if use_boost and self.boosts_remaining <= 0:
-            print(f'Agent {self.agent_id} tried to boost but has no boosts remaining')
+            # Invalid boost request – ignore but track for diagnostics
             use_boost = False
-        
+
         num_moves = 2 if use_boost else 1
-        
+
         if use_boost:
             self.boosts_remaining -= 1
-            print(f'Agent {self.agent_id} used boost! ({self.boosts_remaining} remaining)')
-        
+            self.boosts_used += 1
+
         for move_num in range(num_moves):
             cur_dx, cur_dy = self.direction.value
-            req_dx, req_dy = direction.value
+            requested_dir = direction
+            req_dx, req_dy = requested_dir.value
             if (req_dx, req_dy) == (-cur_dx, -cur_dy):
-                print('invalid move')
-                continue  # Skip this move if invalid direction
-            
+                # Track invalid turn attempts and continue in current direction.
+                self.invalid_move_count += 1
+                requested_dir = self.direction
+
             head = self.trail[-1]
-            dx, dy = direction.value
+            dx, dy = requested_dir.value
             new_head = (head[0] + dx, head[1] + dy)
-            
+
             new_head = self.board._torus_check(new_head)
-            
+
             cell_state = self.board.get_cell_state(new_head)
-            
-            self.direction = direction
-            
+
+            self.direction = requested_dir
+
             # Handle collision with agent trail
             if cell_state == AGENT:
                 # Check if it's our own trail (any part of our trail)
@@ -165,44 +179,76 @@ class Agent:
     
 
 class Game:
-    def __init__(self):
+    def __init__(self, *, verbose: bool = False):
+        self.verbose = verbose
         self.board = GameBoard()
-        self.agent1 = Agent(agent_id=1, start_pos=(1, 2), start_dir=Direction.RIGHT, board=self.board)
-        self.agent2 = Agent(agent_id=2, start_pos=(17, 15), start_dir=Direction.LEFT, board=self.board)
+        self.agent1 = Agent(
+            agent_id=1,
+            start_pos=(1, 2),
+            start_dir=Direction.RIGHT,
+            board=self.board,
+            verbose=verbose,
+        )
+        self.agent2 = Agent(
+            agent_id=2,
+            start_pos=(17, 15),
+            start_dir=Direction.LEFT,
+            board=self.board,
+            verbose=verbose,
+        )
         self.turns = 0
-    
+
     def reset(self):
         """Resets the game to the initial state."""
         self.board = GameBoard()
-        self.agent1 = Agent(agent_id=1, start_pos=(1, 2), start_dir=Direction.RIGHT, board=self.board)
-        self.agent2 = Agent(agent_id=2, start_pos=(17, 15), start_dir=Direction.LEFT, board=self.board)
+        self.agent1 = Agent(
+            agent_id=1,
+            start_pos=(1, 2),
+            start_dir=Direction.RIGHT,
+            board=self.board,
+            verbose=self.verbose,
+        )
+        self.agent2 = Agent(
+            agent_id=2,
+            start_pos=(17, 15),
+            start_dir=Direction.LEFT,
+            board=self.board,
+            verbose=self.verbose,
+        )
         self.turns = 0
-    
+
     def step(self, dir1: Direction, dir2: Direction, boost1: bool = False, boost2: bool = False):
         """Advances the game by one step, moving both agents."""
         if self.turns >= 200:
-            print("Max turns reached. Checking trail lengths...")
+            if self.verbose:
+                print("Max turns reached. Checking trail lengths...")
             if self.agent1.length > self.agent2.length:
-                print(f"Agent 1 wins with trail length {self.agent1.length} vs {self.agent2.length}")
+                if self.verbose:
+                    print(f"Agent 1 wins with trail length {self.agent1.length} vs {self.agent2.length}")
                 return GameResult.AGENT1_WIN
             elif self.agent2.length > self.agent1.length:
-                print(f"Agent 2 wins with trail length {self.agent2.length} vs {self.agent1.length}")
+                if self.verbose:
+                    print(f"Agent 2 wins with trail length {self.agent2.length} vs {self.agent1.length}")
                 return GameResult.AGENT2_WIN
             else:
-                print(f"Draw - both agents have trail length {self.agent1.length}")
+                if self.verbose:
+                    print(f"Draw - both agents have trail length {self.agent1.length}")
                 return GameResult.DRAW
-        
+
         agent_one_alive = self.agent1.move(dir1, other_agent=self.agent2, use_boost=boost1)
         agent_two_alive = self.agent2.move(dir2, other_agent=self.agent1, use_boost=boost2)
 
         if not agent_one_alive and not agent_two_alive:
-            print("Both agents have crashed.")
+            if self.verbose:
+                print("Both agents have crashed.")
             return GameResult.DRAW
         elif not agent_one_alive:
-            print("Agent 1 has crashed.")
+            if self.verbose:
+                print("Agent 1 has crashed.")
             return GameResult.AGENT2_WIN
         elif not agent_two_alive:
-            print("Agent 2 has crashed.")
+            if self.verbose:
+                print("Agent 2 has crashed.")
             return GameResult.AGENT1_WIN
 
         self.turns += 1

@@ -163,7 +163,7 @@ class MCTSNode:
         new_board.grid = [row[:] for row in game.board.grid]
         
         # Create new game object
-        new_game = Game()
+        new_game = Game(verbose=getattr(game, 'verbose', False))
         new_game.board = new_board
         new_game.turns = game.turns
         
@@ -177,7 +177,8 @@ class MCTSNode:
         new_game.agent1 = Agent(agent_id=1,
                                start_pos=start_pos1,
                                start_dir=game.agent1.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent1, 'verbose', False))
         # Restore agent 1 state
         new_game.agent1.trail = deque(list(game.agent1.trail))
         new_game.agent1.direction = game.agent1.direction
@@ -197,7 +198,8 @@ class MCTSNode:
         new_game.agent2 = Agent(agent_id=2,
                                start_pos=start_pos2,
                                start_dir=game.agent2.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent2, 'verbose', False))
         # Restore agent 2 state
         new_game.agent2.trail = deque(list(game.agent2.trail))
         new_game.agent2.direction = game.agent2.direction

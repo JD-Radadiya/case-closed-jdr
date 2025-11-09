@@ -392,7 +392,7 @@ class MinimaxAgent:
         new_board.grid = [row[:] for row in game.board.grid]
         
         # Create new game object
-        new_game = Game()
+        new_game = Game(verbose=getattr(game, 'verbose', False))
         new_game.board = new_board
         new_game.turns = game.turns
         
@@ -412,16 +412,20 @@ class MinimaxAgent:
         
         # Create agent manually to avoid modifying board during init
         # We'll create it with dummy positions first, then restore the trail
-        new_game.agent1 = Agent(agent_id=1, 
-                               start_pos=start_pos, 
+        new_game.agent1 = Agent(agent_id=1,
+                               start_pos=start_pos,
                                start_dir=game.agent1.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent1, 'verbose', False))
         # Restore the actual trail and state
         new_game.agent1.trail = deque(list(game.agent1.trail))
         new_game.agent1.direction = game.agent1.direction
         new_game.agent1.alive = game.agent1.alive
         new_game.agent1.length = game.agent1.length
         new_game.agent1.boosts_remaining = game.agent1.boosts_remaining
+        new_game.agent1.invalid_move_count = getattr(game.agent1, 'invalid_move_count', 0)
+        new_game.agent1.boosts_used = getattr(game.agent1, 'boosts_used', 0)
+        new_game.agent1.verbose = getattr(game.agent1, 'verbose', False)
         # Restore board state (Agent.__init__ may have modified it)
         new_game.board.grid = [row[:] for row in game.board.grid]
         
@@ -440,13 +444,17 @@ class MinimaxAgent:
         new_game.agent2 = Agent(agent_id=2,
                                start_pos=start_pos2,
                                start_dir=game.agent2.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent2, 'verbose', False))
         # Restore the actual trail and state
         new_game.agent2.trail = deque(list(game.agent2.trail))
         new_game.agent2.direction = game.agent2.direction
         new_game.agent2.alive = game.agent2.alive
         new_game.agent2.length = game.agent2.length
         new_game.agent2.boosts_remaining = game.agent2.boosts_remaining
+        new_game.agent2.invalid_move_count = getattr(game.agent2, 'invalid_move_count', 0)
+        new_game.agent2.boosts_used = getattr(game.agent2, 'boosts_used', 0)
+        new_game.agent2.verbose = getattr(game.agent2, 'verbose', False)
         # Restore board state again (Agent.__init__ modifies it)
         new_game.board.grid = [row[:] for row in game.board.grid]
         

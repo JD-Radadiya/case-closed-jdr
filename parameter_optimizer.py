@@ -110,7 +110,9 @@ class ParameterOptimizer:
                 if param_name in self.parameter_ranges and random.random() < mutation_rate:
                     # Mutate this parameter
                     param_values = self.parameter_ranges[param_name]
-                    if isinstance(param_values[0], (int, float)):
+                    if isinstance(param_values[0], bool):
+                        parent[param_name] = random.choice(param_values)
+                    elif isinstance(param_values[0], (int, float)) and not isinstance(param_values[0], bool):
                         # Continuous parameter
                         current_value = parent[param_name]
                         param_range = max(param_values) - min(param_values)
@@ -141,6 +143,11 @@ class ParameterOptimizer:
             if total > 0:
                 for param in weight_params:
                     config[param] = config[param] / total
+            else:
+                # Replace degenerate weight vector with uniform distribution
+                uniform = 1.0 / len(weight_params)
+                for param in weight_params:
+                    config[param] = uniform
         return config
     
     def get_default_ranges(self, agent_type: str) -> Dict[str, List[float]]:
@@ -154,15 +161,18 @@ class ParameterOptimizer:
             Dictionary of parameter ranges
         """
         ranges = {
-            'aggressive_weight': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            'exploration_weight': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-            'safety_weight': [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
+            'aggressive_weight': [0.1, 0.25, 0.4, 0.55, 0.7],
+            'exploration_weight': [0.1, 0.25, 0.4, 0.55, 0.7],
+            'safety_weight': [0.1, 0.25, 0.4, 0.55, 0.7],
         }
-        
+
         if agent_type == 'minimax':
-            ranges['depth'] = [2, 3, 4, 5]
+            ranges['depth'] = [3, 4, 5, 6]
+            ranges['use_transposition_table'] = [True, False]
+            ranges['tt_max_size'] = [5000, 10000, 20000]
         elif agent_type == 'mcts':
-            ranges['simulation_time_ms'] = [50, 100, 150, 200]
-        
+            ranges['simulation_time_ms'] = [80, 120, 180, 250]
+            ranges['exploration_constant'] = [0.8, 1.0, 1.414, 1.8]
+
         return ranges
 

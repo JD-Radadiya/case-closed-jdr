@@ -108,19 +108,37 @@ class TrainingLogger:
             agent2_alive=result.get('agent2_alive')
         )
     
-    def log_batch_results(self, batch_num: int, results: Dict[str, Any]):
+    def log_batch_results(self, batch_label: str, results: Dict[str, Any]):
         """Log batch of match results."""
-        self.info(
-            f"Batch {batch_num} Results",
-            agent1_wins=results.get('agent1_wins'),
-            agent2_wins=results.get('agent2_wins'),
-            draws=results.get('draws'),
-            agent1_win_rate=results.get('agent1_win_rate'),
-            agent2_win_rate=results.get('agent2_win_rate'),
-            agent1_avg_reward=results.get('agent1_avg_reward'),
-            agent2_avg_reward=results.get('agent2_avg_reward'),
-            avg_turns=results.get('avg_turns')
-        )
+        payload = {
+            'agent1_wins': results.get('agent1_wins'),
+            'agent2_wins': results.get('agent2_wins'),
+            'draws': results.get('draws'),
+            'agent1_win_rate': results.get('agent1_win_rate'),
+            'agent2_win_rate': results.get('agent2_win_rate'),
+            'agent1_avg_reward': results.get('agent1_avg_reward'),
+            'agent2_avg_reward': results.get('agent2_avg_reward'),
+            'avg_turns': results.get('avg_turns'),
+        }
+
+        if 'agent1_reward_breakdown' in results:
+            payload['agent1_reward_breakdown'] = results['agent1_reward_breakdown']
+        if 'agent2_reward_breakdown' in results:
+            payload['agent2_reward_breakdown'] = results['agent2_reward_breakdown']
+        if 'agent1_avg_stats' in results:
+            payload['agent1_avg_stats'] = results['agent1_avg_stats']
+        if 'agent2_avg_stats' in results:
+            payload['agent2_avg_stats'] = results['agent2_avg_stats']
+        if 'agent1_avg_invalid_moves' in results:
+            payload['agent1_avg_invalid_moves'] = results['agent1_avg_invalid_moves']
+        if 'agent2_avg_invalid_moves' in results:
+            payload['agent2_avg_invalid_moves'] = results['agent2_avg_invalid_moves']
+        if 'agent1_avg_boosts_used' in results:
+            payload['agent1_avg_boosts_used'] = results['agent1_avg_boosts_used']
+        if 'agent2_avg_boosts_used' in results:
+            payload['agent2_avg_boosts_used'] = results['agent2_avg_boosts_used']
+
+        self.info(f"Batch {batch_label} Results", **payload)
     
     def log_model_evaluation(self, model_name: str, metrics: Dict[str, Any]):
         """Log model evaluation metrics."""
