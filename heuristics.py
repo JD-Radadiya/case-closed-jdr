@@ -1,12 +1,11 @@
-"""
-Heuristic evaluation functions for game state evaluation.
-Includes territory control, survival probability, distance calculations,
-and strategy parameters (aggressive, exploration, safety).
-"""
+"""Heuristic helpers used by search agents."""
 
-from typing import Tuple, Set, List
+from __future__ import annotations
+
 from collections import deque
-from case_closed_game import Game, Agent, Direction, GameBoard, EMPTY, AGENT
+from typing import Dict, Iterable, List, Optional, Set, Tuple
+
+from case_closed_game import AGENT, EMPTY, Agent, Direction, Game, GameBoard
 
 
 def get_accessible_cells(game: Game, agent: Agent, max_depth: int = 10) -> Set[Tuple[int, int]]:
@@ -72,7 +71,37 @@ def get_safe_moves(game: Game, agent: Agent) -> List[Direction]:
     return safe_moves
 
 
-def calculate_manhattan_distance(pos1: Tuple[int, int], pos2: Tuple[int, int], 
+def _evaluate_local_escape_space(
+    game: Game,
+    start_pos: Tuple[int, int],
+    max_depth: int = 3,
+) -> int:
+    """Estimate how many empty cells surround ``start_pos`` within ``max_depth`` moves."""
+
+    queue: deque[Tuple[Tuple[int, int], int]] = deque([(start_pos, 0)])
+    visited = {start_pos}
+    reachable = 0
+
+    while queue:
+        pos, depth = queue.popleft()
+        if depth >= max_depth:
+            continue
+
+        for direction in (Direction.UP, Direction.DOWN, Direction.LEFT, Direction.RIGHT):
+            dx, dy = direction.value
+            next_pos = game.board._torus_check((pos[0] + dx, pos[1] + dy))
+            if next_pos in visited:
+                continue
+            visited.add(next_pos)
+            cell_state = game.board.get_cell_state(next_pos)
+            if cell_state == EMPTY:
+                reachable += 1
+                queue.append((next_pos, depth + 1))
+
+    return reachable
+
+
+def calculate_manhattan_distance(pos1: Tuple[int, int], pos2: Tuple[int, int],
                                  board_width: int, board_height: int) -> int:
     """
     Calculate Manhattan distance with torus wrapping.
@@ -190,7 +219,7 @@ def evaluate_exploration_value(game: Game, agent: Agent) -> float:
     return exploration_score
 
 
-def evaluate_game_state(game: Game, agent_id: int, 
+def evaluate_game_state(game: Game, agent_id: int,
                        aggressive_weight: float = 0.33,
                        exploration_weight: float = 0.33,
                        safety_weight: float = 0.34) -> float:
@@ -254,4 +283,59 @@ def evaluate_game_state(game: Game, agent_id: int,
     final_score = base_score * 0.7 + strategy_score * 0.3
     
     return final_score
+
+
+def estimate_opponent_move_probabilities(
+    game: Game,
+    our_agent: Agent,
+    opponent: Agent,
+    safe_moves: Iterable[Direction],
+    history_bias: Optional[Dict[Direction, float]] = None,
+) -> Dict[Direction, float]:
+    """Estimate probabilities for the opponent's safe moves.
+
+    The heuristic blends how much free space a move grants, how aggressively it
+    points towards our agent, and how frequently we have observed the opponent
+    using each direction historically.
+    """
+
+    moves = list(safe_moves)
+    if not moves:
+        return {}
+
+    head = opponent.trail[-1]
+    our_head = our_agent.trail[-1]
+    bias = history_bias or {}
+
+    width = game.board.width
+    height = game.board.height
+
+    scores: Dict[Direction, float] = {}
+    for move in moves:
+        dx, dy = move.value
+        next_pos = game.board._torus_check((head[0] + dx, head[1] + dy))
+
+        # Encourage moves that keep options open.
+        local_space = _evaluate_local_escape_space(game, next_pos, max_depth=3)
+        space_score = local_space / max(1.0, (width * height) / 8.0)
+
+        # Aggression towards our agent – closer distance increases pressure.
+        distance = calculate_manhattan_distance(next_pos, our_head, width, height)
+        proximity_score = 1.0 / (1.0 + distance)
+
+        # Prefer continuing current momentum slightly.
+        momentum_bonus = 1.2 if move == opponent.direction else 1.0
+
+        # Historical bias acts as a multiplicative prior.
+        prior = bias.get(move, 1.0)
+
+        raw_score = (0.5 * space_score) + (0.3 * momentum_bonus) + (0.2 * proximity_score)
+        scores[move] = max(raw_score, 1e-5) * prior
+
+    total = sum(scores.values())
+    if total <= 0:
+        uniform = 1.0 / len(moves)
+        return {move: uniform for move in moves}
+
+    return {move: scores[move] / total for move in moves}
 

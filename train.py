@@ -10,6 +10,7 @@ from match_runner import MatchRunner
 from model_manager import ModelManager
 from logger import create_logger
 from parameter_optimizer import ParameterOptimizer
+from hybrid_training import HybridMinimaxRLTrainer
 
 DEFAULT_BASELINE_WEIGHTS = {
     'aggressive_weight': 0.4,
@@ -33,6 +34,10 @@ def _build_agent_config(agent_type: str, base_config: Dict[str, Any], agent_id: 
     elif agent_type == 'mcts':
         config.setdefault('simulation_time_ms', 120)
         config.setdefault('exploration_constant', 1.414)
+    elif agent_type == 'hybrid':
+        config.setdefault('minimax_depth', 3)
+        config.setdefault('minimax_weight', 0.4)
+        config.setdefault('risk_weight', 0.5)
 
     return config
 
@@ -186,7 +191,7 @@ def _build_baselines(agent_type: str, model_manager: ModelManager) -> List[Tuple
         'exploration_constant': 1.414,
     }
 
-    if agent_type == 'minimax':
+    if agent_type in ('minimax', 'hybrid'):
         baselines.append(('default_minimax', minimax_default))
         baselines.append(('default_mcts', mcts_default))
     else:
@@ -453,14 +458,136 @@ def train_mcts_vs_mcts(
     return _train_agent_type('mcts', num_matches, num_iterations, optimization_strategy, logs_dir, models_dir)
 
 
+def train_hybrid_minimax_rl(
+    num_matches: int = 20,
+    num_iterations: int = 5,
+    logs_dir: str = 'logs',
+    models_dir: str = 'models',
+    teacher_depth: int = 4,
+    learner_depth: int = 3,
+):
+    """Train the hybrid minimax + RL agent."""
+    logger = create_logger(logs_dir=logs_dir)
+    model_manager = ModelManager(models_dir=models_dir)
+    match_runner = MatchRunner(verbose=False)
+
+    logger.log_training_start({
+        'agent_type': 'hybrid',
+        'num_matches': num_matches,
+        'num_iterations': num_iterations,
+        'teacher_depth': teacher_depth,
+        'learner_depth': learner_depth,
+    })
+
+    trainer = HybridMinimaxRLTrainer(
+        match_runner,
+        agent_id=1,
+        teacher_depth=teacher_depth,
+        learner_depth=learner_depth,
+    )
+
+    baselines = _build_baselines('hybrid', model_manager)
+
+    best_record = {
+        'config': None,
+        'overall_win_rate': 0.0,
+        'overall_avg_reward': 0.0,
+        'overall_avg_invalid_moves': 0.0,
+        'metadata': {},
+    }
+
+    for iteration in range(1, num_iterations + 1):
+        logger.info(
+            'Hybrid iteration start',
+            iteration=iteration,
+            baselines=[name for name, _ in baselines],
+        )
+
+        rollout_stats = trainer.train_iteration(baselines, matches_per_opponent=num_matches)
+        for opponent_name, stats in rollout_stats.items():
+            logger.info(
+                'Rollout summary',
+                iteration=iteration,
+                opponent=opponent_name,
+                avg_reward=stats.get('avg_reward'),
+                win_rate=stats.get('win_rate'),
+                draw_rate=stats.get('draw_rate'),
+                avg_turns=stats.get('avg_turns'),
+            )
+
+        candidate_config = trainer.build_agent_config()
+        metrics = _evaluate_configuration(
+            logger,
+            match_runner,
+            'hybrid',
+            candidate_config,
+            baselines,
+            num_matches,
+            iteration,
+            1,
+        )
+
+        metadata = {
+            'overall_win_rate': metrics['overall_win_rate'],
+            'overall_avg_reward': metrics['overall_avg_reward'],
+            'overall_avg_invalid_moves': metrics['overall_avg_invalid_moves'],
+            'reward_breakdown': metrics['overall_reward_breakdown'],
+            'baselines': metrics['baseline_metrics'],
+            'iteration': iteration,
+            'num_matches_per_baseline': num_matches * 2,
+        }
+
+        model_config = {
+            'type': 'hybrid',
+            **candidate_config,
+            'metadata': metadata,
+        }
+        model_name = f"hybrid_iter{iteration}"
+        model_manager.save_model(model_config, model_name=model_name)
+
+        if metrics['overall_win_rate'] > best_record['overall_win_rate'] or (
+            abs(metrics['overall_win_rate'] - best_record['overall_win_rate']) < 1e-6
+            and metrics['overall_avg_reward'] > best_record['overall_avg_reward']
+        ):
+            best_record = {
+                'config': candidate_config,
+                'overall_win_rate': metrics['overall_win_rate'],
+                'overall_avg_reward': metrics['overall_avg_reward'],
+                'overall_avg_invalid_moves': metrics['overall_avg_invalid_moves'],
+                'metadata': metadata,
+            }
+
+            if _should_promote(metrics):
+                updated = model_manager.update_best_model(
+                    model_config,
+                    metrics['overall_win_rate'],
+                    metrics['overall_avg_reward'],
+                )
+                if updated:
+                    logger.log_best_model_update(
+                        model_name,
+                        metrics['overall_win_rate'],
+                        metrics['overall_avg_reward'],
+                    )
+
+    logger.log_training_end({
+        'best_win_rate': best_record['overall_win_rate'],
+        'best_avg_reward': best_record['overall_avg_reward'],
+        'best_config': best_record['config'],
+    })
+
+    return best_record['config'], best_record['overall_win_rate'], best_record['overall_avg_reward']
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train Case Closed agents with asymmetric evaluation.')
-    parser.add_argument('--agent_type', choices=['minimax', 'mcts'], default='minimax')
+    parser.add_argument('--agent_type', choices=['minimax', 'mcts', 'hybrid'], default='minimax')
     parser.add_argument('--num_matches', type=int, default=40, help='Number of matches per pairing per direction')
     parser.add_argument('--num_iterations', type=int, default=5)
     parser.add_argument('--optimization_strategy', choices=['grid_search', 'random_search'], default='grid_search')
     parser.add_argument('--logs_dir', default='logs')
     parser.add_argument('--models_dir', default='models')
+    parser.add_argument('--teacher_depth', type=int, default=4)
+    parser.add_argument('--learner_depth', type=int, default=3)
 
     args = parser.parse_args()
 
@@ -472,11 +599,20 @@ if __name__ == '__main__':
             logs_dir=args.logs_dir,
             models_dir=args.models_dir,
         )
-    else:
+    elif args.agent_type == 'mcts':
         train_mcts_vs_mcts(
             num_matches=args.num_matches,
             num_iterations=args.num_iterations,
             optimization_strategy=args.optimization_strategy,
             logs_dir=args.logs_dir,
             models_dir=args.models_dir,
+        )
+    else:
+        train_hybrid_minimax_rl(
+            num_matches=args.num_matches,
+            num_iterations=args.num_iterations,
+            logs_dir=args.logs_dir,
+            models_dir=args.models_dir,
+            teacher_depth=args.teacher_depth,
+            learner_depth=args.learner_depth,
         )

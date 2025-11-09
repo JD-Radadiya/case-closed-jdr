@@ -9,6 +9,7 @@ from collections import defaultdict
 from minimax_agent import MinimaxAgent
 from mcts_agent import MCTSAgent
 from baseline_agents import RandomAgent, HeuristicAgent
+from hybrid_agent import HybridMinimaxRLAgent
 
 
 class MatchRunner:
@@ -142,6 +143,21 @@ class MatchRunner:
         elif agent_type == 'heuristic':
             return HeuristicAgent(
                 agent_id=agent_id,
+                aggressive_weight=aggressive_weight,
+                exploration_weight=exploration_weight,
+                safety_weight=safety_weight,
+            )
+        elif agent_type == 'hybrid':
+            minimax_depth = config.get('minimax_depth', 3)
+            minimax_weight = config.get('minimax_weight', 0.4)
+            risk_weight = config.get('risk_weight', 0.5)
+            return HybridMinimaxRLAgent(
+                agent_id=agent_id,
+                policy_weights=config.get('policy_weights'),
+                policy_bias=config.get('policy_bias'),
+                minimax_depth=minimax_depth,
+                minimax_weight=minimax_weight,
+                risk_weight=risk_weight,
                 aggressive_weight=aggressive_weight,
                 exploration_weight=exploration_weight,
                 safety_weight=safety_weight,
