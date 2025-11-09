@@ -32,33 +32,58 @@ def calculate_reward(game: Game, agent_id: int, result: GameResult,
     Returns:
         Total reward score
     """
+    total_reward, _ = calculate_reward_with_components(
+        game,
+        agent_id,
+        result,
+        win_weight=win_weight,
+        survival_weight=survival_weight,
+        territory_weight=territory_weight,
+    )
+    return total_reward
+
+
+def calculate_reward_with_components(
+    game: Game,
+    agent_id: int,
+    result: GameResult,
+    win_weight: float = 0.8,
+    survival_weight: float = 0.1,
+    territory_weight: float = 0.1,
+) -> Tuple[float, Dict[str, float]]:
+    """Calculate reward and provide component-wise breakdown."""
     agent = game.agent1 if agent_id == 1 else game.agent2
     other_agent = game.agent2 if agent_id == 1 else game.agent1
-    
+
     # Normalize weights to sum to 1.0
     total_weight = win_weight + survival_weight + territory_weight
     if total_weight > 0:
         win_weight /= total_weight
         survival_weight /= total_weight
         territory_weight /= total_weight
-    
+
     # 1. Primary reward: Win/Loss/Draw (80% of total)
     win_reward = _calculate_win_reward(result, agent_id)
-    
+
     # 2. Survival time reward (10% of total)
     survival_reward = _calculate_survival_reward(game, agent, other_agent)
-    
+
     # 3. Territory and trail length reward (10% of total)
     territory_reward = _calculate_territory_reward(game, agent, other_agent)
-    
-    # Combine rewards
+
+    components = {
+        'win': win_reward,
+        'survival': survival_reward,
+        'territory': territory_reward,
+    }
+
     total_reward = (
         win_weight * win_reward +
         survival_weight * survival_reward +
         territory_weight * territory_reward
     )
-    
-    return total_reward
+
+    return total_reward, components
 
 
 def _calculate_win_reward(result: GameResult, agent_id: int) -> float:
@@ -126,16 +151,34 @@ def _calculate_territory_reward(game: Game, agent: Agent, other_agent: Agent) ->
 def calculate_rewards_for_both_agents(game: Game, result: GameResult,
                                      win_weight: float = 0.8,
                                      survival_weight: float = 0.1,
-                                     territory_weight: float = 0.1) -> Tuple[float, float]:
+                                     territory_weight: float = 0.1,
+                                     return_components: bool = False):
     """
     Calculate rewards for both agents.
     
     Returns:
         Tuple of (agent1_reward, agent2_reward)
     """
-    reward1 = calculate_reward(game, 1, result, win_weight, survival_weight, territory_weight)
-    reward2 = calculate_reward(game, 2, result, win_weight, survival_weight, territory_weight)
-    
+    reward1, components1 = calculate_reward_with_components(
+        game,
+        1,
+        result,
+        win_weight,
+        survival_weight,
+        territory_weight,
+    )
+    reward2, components2 = calculate_reward_with_components(
+        game,
+        2,
+        result,
+        win_weight,
+        survival_weight,
+        territory_weight,
+    )
+
+    if return_components:
+        return (reward1, components1), (reward2, components2)
+
     return reward1, reward2
 
 

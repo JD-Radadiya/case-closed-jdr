@@ -166,7 +166,7 @@ class MCTSAgent:
         """Create a deep copy of the game state."""
         from collections import deque
         
-        new_game = Game()
+        new_game = Game(verbose=getattr(game, 'verbose', False))
         new_game.board = type(game.board)(height=game.board.height, width=game.board.width)
         new_game.board.grid = [row[:] for row in game.board.grid]
         new_game.turns = game.turns
@@ -176,24 +176,32 @@ class MCTSAgent:
         new_game.agent1 = Agent(agent_id=1,
                                start_pos=agent1_orig.trail[0],
                                start_dir=agent1_orig.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent1, 'verbose', False))
         new_game.agent1.trail = deque(list(agent1_orig.trail))
         new_game.agent1.direction = agent1_orig.direction
         new_game.agent1.alive = agent1_orig.alive
         new_game.agent1.length = agent1_orig.length
         new_game.agent1.boosts_remaining = agent1_orig.boosts_remaining
+        new_game.agent1.invalid_move_count = getattr(agent1_orig, 'invalid_move_count', 0)
+        new_game.agent1.boosts_used = getattr(agent1_orig, 'boosts_used', 0)
+        new_game.agent1.verbose = getattr(agent1_orig, 'verbose', False)
         
         # Copy agent 2
         agent2_orig = game.agent2
         new_game.agent2 = Agent(agent_id=2,
                                start_pos=agent2_orig.trail[0],
                                start_dir=agent2_orig.direction,
-                               board=new_game.board)
+                               board=new_game.board,
+                               verbose=getattr(game.agent2, 'verbose', False))
         new_game.agent2.trail = deque(list(agent2_orig.trail))
         new_game.agent2.direction = agent2_orig.direction
         new_game.agent2.alive = agent2_orig.alive
         new_game.agent2.length = agent2_orig.length
         new_game.agent2.boosts_remaining = agent2_orig.boosts_remaining
+        new_game.agent2.invalid_move_count = getattr(agent2_orig, 'invalid_move_count', 0)
+        new_game.agent2.boosts_used = getattr(agent2_orig, 'boosts_used', 0)
+        new_game.agent2.verbose = getattr(agent2_orig, 'verbose', False)
         
         return new_game
     
